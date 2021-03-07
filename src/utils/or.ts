@@ -8,7 +8,7 @@ export default function or<I, A, B>(a: Factory<I, A>, b: Factory<I, B>) {
       try {
         return b.of(value);
       } catch (e2) {
-        throw new TypeError(e1.mesage + " and " + e2.message);
+        throw new TypeError(e1.message + " and " + e2.message);
       }
     }
   };
