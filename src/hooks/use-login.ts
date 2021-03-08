@@ -18,11 +18,16 @@ export default function useLogin(credentials: Credentials | null): User | null {
     if (!credentials || !dispatch) {
       return;
     }
-    LoginService.ensureValidCredentials(credentials.email, credentials.password)
-      .then(({email, password}) => loginService.login(email, password))
-      .then((user: User) => dispatch!({ type: LogedInActionType.LOG_IN, payload: user }))
-      .then(() => navigate("/"))
-      .catch(e => alert(e.message));
+    try {
+      const validCredentials = LoginService.ensureValidCredentials(credentials.email, credentials.password)
+
+      loginService.login(validCredentials.email, validCredentials.password)
+          .then((user: User) => dispatch!({ type: LogedInActionType.LOG_IN, payload: user }))
+          .then(() => navigate("/"))
+          .catch(e => alert(e.message));
+    } catch (e) {
+      alert(e.message)
+    }
   }, [credentials, dispatch]);
 
   return state.user;

@@ -2,27 +2,10 @@ import {Role} from "../entities/role";
 import {Admin} from "../entities/admin";
 import {Client} from "../entities/client";
 import {Moderator} from "../entities/moderator";
-import {Operation} from "../entities/operation";
 import type {User} from "../entities/user";
 import type {RoleToUser} from "../entities/role-to-user";
-import or from "../utils/or";
-
-const adminOperations = {
-  [Role.ADMIN]: [Operation.UPDATE_TO_CLIENT, Operation.UPDATE_TO_MODERATOR],
-  [Role.CLIENT]: [Operation.UPDATE_TO_ADMIN, Operation.UPDATE_TO_MODERATOR],
-  [Role.MODERATOR]: [Operation.UPDATE_TO_ADMIN, Operation.UPDATE_TO_CLIENT],
-} as const
-
-type AdminOperations = typeof adminOperations
-
-const moderatorOperations = {
-  [Role.MODERATOR]: [Operation.UPDATE_TO_CLIENT],
-  [Role.CLIENT]: [Operation.UPDATE_TO_MODERATOR],
-  [Role.ADMIN]: [],
-} as const
-
-type ModeratorOperations = typeof moderatorOperations
-
+import {PrivilegedUser} from "../entities/privileged-user";
+import {AVAILABLE_OPERATIONS, AVAILABLE_OPERATIONS_TYPE} from "../entities/available-operations";
 
 export default class UserService {
   private users: readonly User[] = [];
@@ -41,6 +24,16 @@ export default class UserService {
     return this.users;
   }
 
+  async getUserByCredentials(email: string, password: string): Promise<Readonly<User>> {
+    const users = await this.getAllUsers()
+    const user = users.find(u => u.password === password && u.email === email)
+    if (!user) {
+      throw new Error('wrong credentials')
+    }
+    return user
+  }
+
+
   private fetch(): Promise<any> {
     return import("../mocks/users.json");
   }
@@ -54,22 +47,8 @@ export default class UserService {
     return this.users;
   }
 
-  private getAvailableOperationForModerator<R extends Role>(currentUser: Moderator, role: R): ModeratorOperations[R] {
-    return moderatorOperations[role]
-  }
-  private getAvailableOperationForAdmin<R extends Role>(currentUser: Admin, role: R): AdminOperations[R] {
-    return adminOperations[role]
-  }
-
-  getAvailableOperations(user: User, currenUser: User): Readonly<Operation[]> {
-    const concreteUser = or(Admin, Moderator)(currenUser)
-
-    switch (concreteUser.role) {
-      case Role.ADMIN:
-        return this.getAvailableOperationForAdmin(concreteUser, user.role)
-      case Role.MODERATOR:
-        return this.getAvailableOperationForModerator(concreteUser, user.role)
-    }
+  getAvailableOperations<R1 extends Role, R2 extends Role>(user: User & { role: R1 }, currentUser: PrivilegedUser & { role: R2 }): AVAILABLE_OPERATIONS_TYPE[R2][R1] {
+    return AVAILABLE_OPERATIONS[currentUser.role][user.role];
   }
 
   getConstructorByRole(role: Role) {

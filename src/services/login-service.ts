@@ -28,25 +28,16 @@ class ValidPassword {
 }
 
 export default class LoginService {
-  static async ensureValidCredentials(email: string, password: string) {
+  static ensureValidCredentials(email: string, password: string) {
     return {email: new ValidEmail(email), password: new ValidPassword(password)}
   }
   private static ensureAdminOrModerator = or(Admin, Moderator);
 
   public async login(email: ValidEmail, password: ValidPassword): Promise<UserThatCanEnter> {
-    const rawUser = await LoginService.makeMockRequest(email.value, password.value)
+    const rawUser = await this.userService.getUserByCredentials(email.value, password.value)
     const user = this.userService.parseUser(rawUser)
 
     return LoginService.ensureAdminOrModerator(user)
-  }
-
-  private static async makeMockRequest(email: string, password: string): Promise<any> {
-    const users = (await import("../mocks/users.json")).default;
-    const user = users.find(u => u.password === password && u.email === email)
-    if (!user) {
-      throw new Error('wrong credentials')
-    }
-    return user
   }
 
   constructor(private userService: UserService) {
