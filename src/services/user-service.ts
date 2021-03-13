@@ -1,8 +1,6 @@
 import {Role} from "../entities/role";
-import {Admin} from "../entities/admin";
-import {Client} from "../entities/client";
-import {Moderator} from "../entities/moderator";
-import type {User} from "../entities/user";
+import { User } from "../entities/user";
+import { castTo } from "../entities/role-to-user";
 import type {RoleToUser} from "../entities/role-to-user";
 import {PrivilegedUser} from "../entities/privileged-user";
 import {AVAILABLE_OPERATIONS, AVAILABLE_OPERATIONS_TYPE} from "../entities/available-operations";
@@ -11,8 +9,7 @@ export default class UserService {
   private users: readonly User[] = [];
 
   parseUser = (u: any) => {
-    const User = this.getConstructorByRole(u.role);
-    return User.from(u);
+    return User.check(u)
   };
 
   async getAllUsers(): Promise<readonly User[]> {
@@ -39,11 +36,11 @@ export default class UserService {
   }
 
   async updateUserRole<R extends Role>(
-    user: Readonly<RoleToUser[R]>,
+    user: RoleToUser[R],
     newRole: R
   ) {
-    const User = this.getConstructorByRole(newRole);
-    this.users = this.users.map((u) => (u.id === user.id ? User.from(u) : u));
+    const newUser = castTo(newRole, user);
+    this.users = this.users.map((u) => (u.id === user.id ? newUser : u));
     return this.users;
   }
 
@@ -51,14 +48,4 @@ export default class UserService {
     return AVAILABLE_OPERATIONS[currentUser.role][user.role];
   }
 
-  getConstructorByRole(role: Role) {
-    switch (role) {
-      case Role.ADMIN:
-        return Admin;
-      case Role.CLIENT:
-        return Client;
-      case Role.MODERATOR:
-        return Moderator;
-    }
-  }
 }
