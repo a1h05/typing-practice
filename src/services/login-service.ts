@@ -1,43 +1,31 @@
-import {Moderator} from "../entities/moderator";
-import {Admin} from "../entities/admin";
-import or from "../utils/or";
+import * as t from "runtypes";
 import UserService from "./user-service";
+import {PrivilegedUser} from "../entities/privileged-user";
 
-type UserThatCanEnter = Admin | Moderator
+const ValidEmail = t.String
+    .withBrand('ValidEmail')
+    .withConstraint(str => (/^[^\s@]+@[^\s@]+$/).test(str) || 'Invalid email');
+type ValidEmail = t.Static<typeof ValidEmail>
 
-class ValidEmail {
-  private readonly type = Symbol('validEmail')
-  readonly value!: string
-  constructor(str: any) {
-    if (typeof str !== 'string' || !(/^[^\s@]+@[^\s@]+$/).test(str)) {
-      throw new Error('Invalid email')
-    }
-    this.value = str
-  }
-}
-
-class ValidPassword {
-  private readonly type = Symbol('validPassword')
-  readonly value!: string
-  constructor(str: any) {
-    if (typeof str !== 'string' || str.length <= 4) {
-      throw new Error('Invalid password')
-    }
-    this.value = str
-  }
-}
+const ValidPassword = t.String
+    .withBrand('ValidPassword')
+    .withConstraint(str => str.length >= 4 || 'Invalid password');
+type ValidPassword = t.Static<typeof ValidPassword>
 
 export default class LoginService {
   static ensureValidCredentials(email: string, password: string) {
-    return {email: new ValidEmail(email), password: new ValidPassword(password)}
+    return {email: ValidEmail.check(email), password: ValidPassword.check(password)}
   }
-  private static ensureAdminOrModerator = or(Admin, Moderator);
 
-  public async login(email: ValidEmail, password: ValidPassword): Promise<UserThatCanEnter> {
-    const rawUser = await this.userService.getUserByCredentials(email.value, password.value)
+  public async login(email: ValidEmail, password: ValidPassword): Promise<PrivilegedUser> {
+    const rawUser = await this.userService.getUserByCredentials(email, password)
     const user = this.userService.parseUser(rawUser)
 
-    return LoginService.ensureAdminOrModerator(user)
+    try {
+      return PrivilegedUser.check(user)
+    } catch (e) {
+      throw new Error('Only Admin or Moderator can enter')
+    }
   }
 
   constructor(private userService: UserService) {
